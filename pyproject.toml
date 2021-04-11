@@ -10,7 +10,7 @@ repository = "https://github.com/j-a-n/python-moehlenhoff-alpha2"
 
 [tool.poetry.dependencies]
 python = "^3.6"
-aiohttp = "^3.7.2"
+aiohttp = "^3.7.1"
 xmltodict = "^0.12.0"
 
 [tool.poetry.dev-dependencies]
