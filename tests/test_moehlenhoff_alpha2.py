@@ -4,7 +4,7 @@ from moehlenhoff_alpha2 import __version__, Alpha2Base
 HOST = "172.16.1.74"
 
 def test_version():
-    assert __version__ == '1.0'
+    assert __version__ == '1.0.1'
 
 @pytest.mark.asyncio
 async def test_get_heatareas():
