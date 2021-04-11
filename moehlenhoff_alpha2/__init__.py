@@ -12,7 +12,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 class Alpha2Base:
     _TYPES = {
@@ -85,11 +85,17 @@ class Alpha2Base:
             async with session.get(f"{self.base_url}/data/static.xml") as response:
                 data = await response.text()
                 self.static_data = xmltodict.parse(data)
+                if not "HEATAREA" in self.static_data["Devices"]["Device"]:
+                    self.static_data["Devices"]["Device"]["HEATAREA"] = []
+                if not isinstance(self.static_data["Devices"]["Device"]["HEATAREA"], list):
+                    self.static_data["Devices"]["Device"]["HEATAREA"] = [
+                        self.static_data["Devices"]["Device"]["HEATAREA"]
+                    ]
                 logger.debug(
                     "Static data fetched from '%s', device name is '%s', %d heatareas found",
                     self.base_url,
                     self.static_data["Devices"]["Device"]["NAME"],
-                    len(self.static_data["Devices"]["Device"].get("HEATAREA", []))
+                    len(self.static_data["Devices"]["Device"]["HEATAREA"])
                 )
 
     def _ensure_static_data(self):

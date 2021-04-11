@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "moehlenhoff-alpha2"
-version = "1.0.1"
+version = "1.0.2"
 description = "Python client for the Moehlenhoff Alpha2 underfloor heating system"
 authors = ["Jan Schneider <oss@janschneider.net>"]
 license = "GPL"
