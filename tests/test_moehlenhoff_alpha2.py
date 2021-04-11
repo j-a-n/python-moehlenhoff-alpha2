@@ -18,7 +18,7 @@ async def test_update_heatareas():
     base = Alpha2Base(HOST)
     await base.update_data()
     ha = list(base.heatareas)[0]
-    t_target = ha["T_TARGET"] + 0.2
+    t_target = round(ha["T_TARGET"] + 0.2, 1)
     await base.update_heatarea(ha["ID"], {"T_TARGET": t_target})
     await base.update_data()
     ha = list(base.heatareas)[0]
