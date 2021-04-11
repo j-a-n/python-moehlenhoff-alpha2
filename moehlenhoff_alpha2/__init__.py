@@ -8,8 +8,11 @@ import asyncio
 import collections
 import aiohttp
 import xmltodict
+import logging
 
-__version__ = "1.0"
+logger = logging.getLogger(__name__)
+
+__version__ = "1.0.1"
 
 class Alpha2Base:
     _TYPES = {
@@ -82,6 +85,12 @@ class Alpha2Base:
             async with session.get(f"{self.base_url}/data/static.xml") as response:
                 data = await response.text()
                 self.static_data = xmltodict.parse(data)
+                logger.debug(
+                    "Static data fetched from '%s', device name is '%s', %d heatareas found",
+                    self.base_url,
+                    self.static_data["Devices"]["Device"]["NAME"],
+                    len(self.static_data["Devices"]["Device"].get("HEATAREA", []))
+                )
 
     def _ensure_static_data(self):
         if self.static_data:
