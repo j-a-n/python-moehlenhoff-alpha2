@@ -126,6 +126,11 @@ class Alpha2Base:
         return self.static_data["Devices"]["Device"]["NAME"]
 
     @property
+    def id(self):
+        self._ensure_static_data()
+        return self.static_data["Devices"]["Device"]["ID"]
+
+    @property
     def heatareas(self):
         self._ensure_static_data()
         device = self.static_data["Devices"]["Device"]
