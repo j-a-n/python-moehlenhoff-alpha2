@@ -155,7 +155,13 @@ class Alpha2Base:
         self.static_data["Devices"]["Device"]["COOLING"] = value
 
     async def update_heatarea(self, heatarea_id, settings):
-        device_id, nr = heatarea_id.split(":")
+        device_id = None
+        nr = None
+        if ":" in heatarea_id:
+            device_id, nr = heatarea_id.split(":")
+        else:
+            device_id = self.id
+            nr = heatarea_id
         command = f'<HEATAREA nr="{nr}">'
         self._types_for_xml("HEATAREA", settings)
         for k, v in settings.items():
