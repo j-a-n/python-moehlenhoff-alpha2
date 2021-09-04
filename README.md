@@ -1,6 +1,9 @@
 # python-moehlenhoff-alpha2
 Python client for the Moehlenhoff Alpha2 underfloor heating system
 
+## Vendor documentation
+- https://www.ezr-portal.de/backend/documents.php?d=Alpha2_XML_Schnittstellen_Informationen.zip
+
 ## Installation
 
 Moehlenhoff Alpha2 can be installed from PyPI using `pip` or your package manager of choice:
