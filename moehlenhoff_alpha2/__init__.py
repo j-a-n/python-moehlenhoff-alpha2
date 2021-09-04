@@ -141,6 +141,18 @@ class Alpha2Base:
             del ha["@nr"]
             ha["ID"] = f"{device['ID']}:{ha['NR']}"
             yield ha
+    
+    @property
+    def cooling(self):
+        self._ensure_static_data()
+        return int(self.static_data["Devices"]["Device"]["COOLING"]) == 1
+    
+    async def set_cooling(self, value: bool):
+        # Needs <RELAIS><FUNCTION>1</FUNCTION></RELAIS>
+        value = 1 if value else 0
+        command = f'<COOLING>{value}</COOLING>'
+        await self._send_command(self.id, command)
+        self.static_data["Devices"]["Device"]["COOLING"] = value
 
     async def update_heatarea(self, heatarea_id, settings):
         device_id, nr = heatarea_id.split(":")
