@@ -85,12 +85,13 @@ class Alpha2Base:
             async with session.get(f"{self.base_url}/data/static.xml") as response:
                 data = await response.text()
                 self.static_data = xmltodict.parse(data)
-                if not "HEATAREA" in self.static_data["Devices"]["Device"]:
-                    self.static_data["Devices"]["Device"]["HEATAREA"] = []
-                if not isinstance(self.static_data["Devices"]["Device"]["HEATAREA"], list):
-                    self.static_data["Devices"]["Device"]["HEATAREA"] = [
-                        self.static_data["Devices"]["Device"]["HEATAREA"]
-                    ]
+                for _type in ("HEATAREA", "HEATCTRL"):
+                    if not _type in self.static_data["Devices"]["Device"]:
+                        self.static_data["Devices"]["Device"][_type] = []
+                    if not isinstance(self.static_data["Devices"]["Device"][_type], list):
+                        self.static_data["Devices"]["Device"][_type] = [
+                            self.static_data["Devices"]["Device"][_type]
+                        ]
                 logger.debug(
                     "Static data fetched from '%s', device name is '%s', %d heatareas found",
                     self.base_url,
@@ -140,6 +141,12 @@ class Alpha2Base:
             ha["NR"] = int(ha["@nr"])
             del ha["@nr"]
             ha["ID"] = f"{device['ID']}:{ha['NR']}"
+            ha["_HEATCTRL_STATE"] = 0
+            for heatctrl in device["HEATCTRL"]:
+                if heatctrl["INUSE"] and int(heatctrl["HEATAREA_NR"]) == ha["NR"]:
+                    ha["_HEATCTRL_STATE"] = int(heatctrl["HEATCTRL_STATE"])
+                    if ha["_HEATCTRL_STATE"]:
+                        break
             yield ha
     
     @property
