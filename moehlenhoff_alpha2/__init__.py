@@ -4,17 +4,19 @@
 Released under the GNU General Public License v3.0
 """
 
+import logging
 import asyncio
-import collections
 import aiohttp
 import xmltodict
-import logging
+
 
 logger = logging.getLogger(__name__)
 
-__version__ = "1.0.2"
+__version__ = "1.1.0"
+
 
 class Alpha2Base:
+    """Class representing one alpha2 base"""
     _TYPES = {
         "HEATAREA": {
             "BLOCK_HC": bool,
@@ -71,10 +73,10 @@ class Alpha2Base:
         if _types:
             for k in data:
                 if k in _types:
-                    if _types[k] is bool and type(data[k]) is not bool:
+                    if _types[k] is bool and not isinstance(data[k], bool):
                         data[k] = "1" if data[k] else "0"
                         continue
-                    elif _types[k] is float and type(data[k]) is not float:
+                    if _types[k] is float and not isinstance(data[k], float):
                         data[k] = "{data[k]:0.1f}"
                         continue
                 data[k] = str(data[k])
@@ -86,26 +88,28 @@ class Alpha2Base:
                 data = await response.text()
                 self.static_data = xmltodict.parse(data)
                 for _type in ("HEATAREA", "HEATCTRL"):
-                    if not _type in self.static_data["Devices"]["Device"]:
+                    if _type not in self.static_data["Devices"]["Device"]:
                         self.static_data["Devices"]["Device"][_type] = []
                     if not isinstance(self.static_data["Devices"]["Device"][_type], list):
                         self.static_data["Devices"]["Device"][_type] = [
                             self.static_data["Devices"]["Device"][_type]
                         ]
                 logger.debug(
-                    "Static data fetched from '%s', device name is '%s', %d heatareas found",
+                    "Static data fetched from '%s', device name is '%s', %d heat_areas found",
                     self.base_url,
                     self.static_data["Devices"]["Device"]["NAME"],
                     len(self.static_data["Devices"]["Device"]["HEATAREA"])
                 )
 
     def _ensure_static_data(self):
+        """Ensure that static data is available"""
         if self.static_data:
             return
         future = asyncio.run_coroutine_threadsafe(self.update_data(), asyncio.get_event_loop())
         future.result(timeout=self._timeout.total)
 
     async def _send_command(self, device_id, command):
+        """Send a command to the base"""
         xml = (
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             "<Devices><Device>"
@@ -119,59 +123,66 @@ class Alpha2Base:
                 return await response.text()
 
     async def update_data(self):
+        """Update local data"""
         await self._fetch_static_data()
 
     @property
     def name(self):
+        """Return the name of the base"""
         self._ensure_static_data()
         return self.static_data["Devices"]["Device"]["NAME"]
 
     @property
-    def id(self):
+    def id(self):  # pylint: disable=invalid-name
+        """Return the id of the base"""
         self._ensure_static_data()
         return self.static_data["Devices"]["Device"]["ID"]
 
     @property
-    def heatareas(self):
+    def heat_areas(self):
+        """Return all heat areas"""
         self._ensure_static_data()
         device = self.static_data["Devices"]["Device"]
-        for ha in device["HEATAREA"]:
-            ha = dict(ha)
-            self._types_from_xml("HEATAREA", ha)
-            ha["NR"] = int(ha["@nr"])
-            del ha["@nr"]
-            ha["ID"] = f"{device['ID']}:{ha['NR']}"
-            ha["_HEATCTRL_STATE"] = 0
+        for heat_area in device["HEATAREA"]:
+            heat_area = dict(heat_area)
+            self._types_from_xml("HEATAREA", heat_area)
+            heat_area["NR"] = int(heat_area["@nr"])
+            del heat_area["@nr"]
+            heat_area["ID"] = f"{device['ID']}:{heat_area['NR']}"
+            heat_area["_HEATCTRL_STATE"] = 0
             for heatctrl in device["HEATCTRL"]:
-                if heatctrl["INUSE"] and int(heatctrl["HEATAREA_NR"]) == ha["NR"]:
-                    ha["_HEATCTRL_STATE"] = int(heatctrl["HEATCTRL_STATE"])
-                    if ha["_HEATCTRL_STATE"]:
+                if heatctrl["INUSE"] and int(heatctrl["HEATAREA_NR"]) == heat_area["NR"]:
+                    heat_area["_HEATCTRL_STATE"] = int(heatctrl["HEATCTRL_STATE"])
+                    if heat_area["_HEATCTRL_STATE"]:
                         break
-            yield ha
-    
+            yield heat_area
+
     @property
     def cooling(self):
+        """Return if cooling mode is active"""
         self._ensure_static_data()
         return int(self.static_data["Devices"]["Device"]["COOLING"]) == 1
-    
+
     async def set_cooling(self, value: bool):
+        """Set cooling mode"""
         # Needs <RELAIS><FUNCTION>1</FUNCTION></RELAIS>
         value = 1 if value else 0
         command = f'<COOLING>{value}</COOLING>'
         await self._send_command(self.id, command)
         self.static_data["Devices"]["Device"]["COOLING"] = value
 
-    async def update_heatarea(self, heatarea_id, settings):
+    async def update_heat_area(self, heat_area_id, settings):
+        """Update heat area settings on base"""
         device_id = None
-        nr = None
-        if ":" in heatarea_id:
-            device_id, nr = heatarea_id.split(":")
+        ha_nr = None
+        if ":" in heat_area_id:
+            device_id, ha_nr = heat_area_id.split(":")
         else:
             device_id = self.id
-            nr = heatarea_id
-        command = f'<HEATAREA nr="{nr}">'
+            ha_nr = heat_area_id
+        command = f'<HEATAREA nr="{ha_nr}">'
         self._types_for_xml("HEATAREA", settings)
-        for k, v in settings.items():
-            command += f"<{k}>{v}</{k}>"
+        for sttr, val in settings.items():
+            command += f"<{sttr}>{val}</{sttr}>"
         command += "</HEATAREA>"
         await self._send_command(device_id, command)
