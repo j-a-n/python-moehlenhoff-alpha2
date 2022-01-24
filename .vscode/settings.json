@@ -1,4 +1,5 @@
 {
+	"python.defaultInterpreterPath": ".venv/bin/python",
 	"editor.insertSpaces": false,
 	"editor.renderWhitespace": "all",
 	"python.linting.enabled": true,
