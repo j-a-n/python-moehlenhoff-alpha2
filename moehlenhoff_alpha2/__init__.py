@@ -14,7 +14,7 @@ import xmltodict
 
 logger = logging.getLogger(__name__)
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 class Alpha2Base:
@@ -198,7 +198,6 @@ class Alpha2Base:
                     self.static_data = data
                     break
                 elapsed = time.time() - start
-                print(elapsed)
                 if elapsed > self._command_timeout:
                     raise TimeoutError(f"Timed out after {elapsed:0.0f} seconds while waiting for command to take effect")
 
