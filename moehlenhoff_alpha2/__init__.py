@@ -14,7 +14,7 @@ import xmltodict
 
 logger = logging.getLogger(__name__)
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 
 class Alpha2Base:
@@ -104,10 +104,16 @@ class Alpha2Base:
             "</Device></Devices>"
         )
         async with aiohttp.ClientSession(timeout=self._client_timeout) as session:
-            async with session.post(
-                f"{self.base_url}/data/changes.xml", data=xml.encode("utf-8")
-            ) as response:
-                return await response.text()
+            for trynum in (1, 2):
+                try:
+                    async with session.post(
+                        f"{self.base_url}/data/changes.xml", data=xml.encode("utf-8")
+                    ) as response:
+                        response.raise_for_status()
+                        return await response.text()
+                except (UnicodeDecodeError, aiohttp.ClientError):
+                    if trynum == 2:
+                        raise
 
     async def send_command(self, command: str) -> str:
         """Send a command to the base"""
@@ -121,8 +127,14 @@ class Alpha2Base:
 
     async def _fetch_static_data(self) -> str:
         async with aiohttp.ClientSession(timeout=self._client_timeout) as session:
-            async with session.get(f"{self.base_url}/data/static.xml") as response:
-                return await response.text()
+            for trynum in (1, 2):
+                try:
+                    async with session.get(f"{self.base_url}/data/static.xml") as response:
+                        response.raise_for_status()
+                        return await response.text()
+                except (UnicodeDecodeError, aiohttp.ClientError):
+                    if trynum == 2:
+                        raise
 
     async def _get_static_data(self) -> dict:
         """Get and process static data"""
