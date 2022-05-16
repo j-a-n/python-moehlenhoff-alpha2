@@ -17,7 +17,9 @@ ALPHA2_BASE_ADDRESS = os.environ.get("ALPHA2_BASE_ADDRESS")
         ("HEATAREA", "BLOCK_HC", "0", False),
         ("HEATAREA", "HEATAREA_NAME", "1.1", "1.1"),
         ("HEATAREA", "HEATAREA_MODE", "1", 1),
-        ("HEATAREA", "T_ACTUAL", "19.2", 19.2)
+        ("HEATAREA", "T_ACTUAL", "19.2", 19.2),
+        ("IODEVICE", "BATTERY", "2", 2),
+        ("HEATCTRL", "INUSE", "0", False)
     )
 )
 def test_convert_types_from_xml(entity_type, attribute, value, expected_value):
@@ -58,13 +60,13 @@ def test_convert_types_for_xml_error():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    'xml_file, base_id, base_name, num_heat_areas',
+    'xml_file, base_id, base_name, num_heat_areas, num_heat_controls, num_io_devices',
     (
-        ("static1.xml", "EZR012345", "EZR012345", 6),
-        ("static2.xml", "Alpha2Test", "Alpha2Test", 1)
-    )
+        ("static1.xml", "EZR012345", "EZR012345", 6, 12, 6),
+        ("static2.xml", "Alpha2Test", "Alpha2Test", 1, 12, 1)
+    )  # pylint: disable=too-many-arguments
 )
-async def test_parse_xml(xml_file, base_id, base_name, num_heat_areas):
+async def test_parse_xml(xml_file, base_id, base_name, num_heat_areas, num_heat_controls, num_io_devices):
     """Test xml parsing"""
     async def _fetch_static_data(_self):
         with open(os.path.join("tests/data", xml_file), "r", encoding="utf-8") as file:
@@ -75,8 +77,9 @@ async def test_parse_xml(xml_file, base_id, base_name, num_heat_areas):
         assert base.id == base_id
         assert base.name == base_name
 
-        heat_areas = list(base.heat_areas)
-        assert len(heat_areas) == num_heat_areas
+        assert len(list(base.heat_areas)) == num_heat_areas
+        assert len(list(base.heat_controls)) == num_heat_controls
+        assert len(list(base.io_devices)) == num_io_devices
 
 
 @pytest.mark.asyncio

@@ -19,7 +19,27 @@ __version__ = "1.1.2"
 
 class Alpha2Base:
     """Class representing one alpha2 base"""
+
     _TYPES = {
+        "IODEVICE": {
+            "IODEVICE_TYPE": int,
+            "IODEVICE_ID": int,
+            "IODEVICE_VERS_HW": str,
+            "IODEVICE_VERS_SW": str,
+            "HEATAREA_NR": int,
+            "SIGNALSTRENGTH": int,
+            "BATTERY": int,  # 0=empty, 1=weak, 2=good
+            "IODEVICE_STATE": int,
+            "IODEVICE_COMERROR": int,
+            "ISON": bool,
+        },
+        "HEATCTRL": {
+            "INUSE": bool,
+            "HEATAREA_NR": int,
+            "ACTOR": int,
+            "ACTOR_PERCENT": int,
+            "HEATCTRL_STATE": int,
+        },
         "HEATAREA": {
             "BLOCK_HC": bool,
             "HEATAREA_NAME": str,
@@ -51,7 +71,7 @@ class Alpha2Base:
             "T_TARGET_BASE": float,
             "T_TARGET_MIN": float,
             "T_TARGET_MAX": float,
-        }
+        },
     }
     _command_poll_interval = 2.0
     _command_timeout = 10.0
@@ -87,7 +107,9 @@ class Alpha2Base:
         for attribute in data:
             if attribute in _types:
                 if _types[attribute] is bool:
-                    data[attribute] = "1" if data[attribute] and data[attribute] != "0" else "0"
+                    data[attribute] = (
+                        "1" if data[attribute] and data[attribute] != "0" else "0"
+                    )
                     continue
                 if _types[attribute] is float:
                     data[attribute] = f"{float(data[attribute]):0.1f}"
@@ -129,7 +151,9 @@ class Alpha2Base:
         async with aiohttp.ClientSession(timeout=self._client_timeout) as session:
             for trynum in (1, 2):
                 try:
-                    async with session.get(f"{self.base_url}/data/static.xml") as response:
+                    async with session.get(
+                        f"{self.base_url}/data/static.xml"
+                    ) as response:
                         response.raise_for_status()
                         return await response.text()
                 except (UnicodeDecodeError, aiohttp.ClientError):
@@ -140,11 +164,9 @@ class Alpha2Base:
         """Get and process static data"""
         data = await self._fetch_static_data()
         data = xmltodict.parse(data)
-        for _type in ("HEATAREA", "HEATCTRL"):
+        for _type in ("HEATAREA", "HEATCTRL", "IODEVICE"):
             if not isinstance(data["Devices"]["Device"][_type], list):
-                data["Devices"]["Device"][_type] = [
-                    data["Devices"]["Device"][_type]
-                ]
+                data["Devices"]["Device"][_type] = [data["Devices"]["Device"][_type]]
         return data
 
     async def update_data(self) -> None:
@@ -152,10 +174,12 @@ class Alpha2Base:
         async with self._update_lock:
             self.static_data = await self._get_static_data()
             logger.debug(
-                "Static data updated from '%s', device name is '%s', %d heat areas found",
+                "Static data updated from '%s', device name is '%s', %d heat areas, %d heat controls and %d io devices found",
                 self.base_url,
                 self.name,
-                len(self.static_data["Devices"]["Device"]["HEATAREA"])
+                len(self.static_data["Devices"]["Device"]["HEATAREA"]),
+                len(self.static_data["Devices"]["Device"]["HEATCTRL"]),
+                len(self.static_data["Devices"]["Device"]["IODEVICE"]),
             )
 
     @property
@@ -171,6 +195,30 @@ class Alpha2Base:
         return self.static_data["Devices"]["Device"]["ID"]
 
     @property
+    def io_devices(self) -> Generator[Dict, None, None]:
+        """Return all io devices"""
+        self._ensure_static_data()
+        device = self.static_data["Devices"]["Device"]
+        for io_device in device["IODEVICE"]:
+            io_device = self.convert_types_from_xml("IODEVICE", io_device)
+            io_device["NR"] = int(io_device["@nr"])
+            del io_device["@nr"]
+            io_device["ID"] = f"{device['ID']}:{io_device['NR']}"
+            yield io_device
+
+    @property
+    def heat_controls(self) -> Generator[Dict, None, None]:
+        """Return all heat controls"""
+        self._ensure_static_data()
+        device = self.static_data["Devices"]["Device"]
+        for heat_control in device["HEATCTRL"]:
+            heat_control = self.convert_types_from_xml("HEATCTRL", heat_control)
+            heat_control["NR"] = int(heat_control["@nr"])
+            del heat_control["@nr"]
+            heat_control["ID"] = f"{device['ID']}:{heat_control['NR']}"
+            yield heat_control
+
+    @property
     def heat_areas(self) -> Generator[Dict, None, None]:
         """Return all heat areas"""
         self._ensure_static_data()
@@ -182,7 +230,10 @@ class Alpha2Base:
             heat_area["ID"] = f"{device['ID']}:{heat_area['NR']}"
             heat_area["_HEATCTRL_STATE"] = 0
             for heatctrl in device["HEATCTRL"]:
-                if heatctrl["INUSE"] and int(heatctrl["HEATAREA_NR"]) == heat_area["NR"]:
+                if (
+                    heatctrl["INUSE"]
+                    and int(heatctrl["HEATAREA_NR"]) == heat_area["NR"]
+                ):
                     heat_area["_HEATCTRL_STATE"] = int(heatctrl["HEATCTRL_STATE"])
                     if heat_area["_HEATCTRL_STATE"]:
                         break
@@ -199,7 +250,7 @@ class Alpha2Base:
         # Needs <RELAIS><FUNCTION>1</FUNCTION></RELAIS>
         value = 1 if value else 0
         self.static_data["Devices"]["Device"]["COOLING"] = value
-        command = f'<COOLING>{value}</COOLING>'
+        command = f"<COOLING>{value}</COOLING>"
         async with self._update_lock:
             await self._send_command(self.id, command)
             start = time.time()
@@ -211,7 +262,9 @@ class Alpha2Base:
                     break
                 elapsed = time.time() - start
                 if elapsed > self._command_timeout:
-                    raise TimeoutError(f"Timed out after {elapsed:0.0f} seconds while waiting for command to take effect")
+                    raise TimeoutError(
+                        f"Timed out after {elapsed:0.0f} seconds while waiting for command to take effect"
+                    )
 
     async def update_heat_area(self, heat_area_id: Union[str, int], attributes: dict):
         """Update heat area attributes on base"""
