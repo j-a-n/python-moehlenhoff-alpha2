@@ -83,6 +83,36 @@ async def test_parse_xml(xml_file, base_id, base_name, num_heat_areas, num_heat_
 
 
 @pytest.mark.asyncio
+async def test_heatarea_ids():
+    """Test _HEATAREA_ID attribute"""
+    async def _fetch_static_data(_self):
+        with open(os.path.join("tests/data/static1.xml"), "r", encoding="utf-8") as file:
+            return file.read()
+    with patch("moehlenhoff_alpha2.Alpha2Base._fetch_static_data", _fetch_static_data):
+        base = Alpha2Base("127.0.0.1")
+        await base.update_data()
+
+        heat_controls = {hc["NR"]: hc for hc in base.heat_controls}
+        assert heat_controls[1]["_HEATAREA_ID"] == "EZR012345:1"
+        assert heat_controls[2]["_HEATAREA_ID"] == "EZR012345:1"
+        assert heat_controls[3]["_HEATAREA_ID"] == "EZR012345:1"
+        assert heat_controls[4]["_HEATAREA_ID"] == "EZR012345:4"
+        assert heat_controls[5]["_HEATAREA_ID"] == "EZR012345:5"
+        assert heat_controls[6]["_HEATAREA_ID"] == "EZR012345:6"
+        assert heat_controls[7]["_HEATAREA_ID"] == "EZR012345:7"
+        assert heat_controls[8]["_HEATAREA_ID"] == "EZR012345:8"
+        assert heat_controls[9]["_HEATAREA_ID"] is None
+
+        io_devices = {io["NR"]: io for io in base.io_devices}
+        assert io_devices[1]["_HEATAREA_ID"] == "EZR012345:7"
+        assert io_devices[2]["_HEATAREA_ID"] == "EZR012345:5"
+        assert io_devices[3]["_HEATAREA_ID"] == "EZR012345:6"
+        assert io_devices[4]["_HEATAREA_ID"] == "EZR012345:8"
+        assert io_devices[5]["_HEATAREA_ID"] == "EZR012345:1"
+        assert io_devices[6]["_HEATAREA_ID"] == "EZR012345:4"
+
+
+@pytest.mark.asyncio
 async def test_ensure_static_data():
     """Test _ensure_static_data"""
     base = Alpha2Base(ALPHA2_BASE_ADDRESS)

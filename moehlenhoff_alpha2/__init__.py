@@ -204,6 +204,7 @@ class Alpha2Base:
             io_device["NR"] = int(io_device["@nr"])
             del io_device["@nr"]
             io_device["ID"] = f"{device['ID']}:{io_device['NR']}"
+            io_device["_HEATAREA_ID"] = f"{device['ID']}:{io_device['HEATAREA_NR']}" if io_device['HEATAREA_NR'] else None
             yield io_device
 
     @property
@@ -216,6 +217,7 @@ class Alpha2Base:
             heat_control["NR"] = int(heat_control["@nr"])
             del heat_control["@nr"]
             heat_control["ID"] = f"{device['ID']}:{heat_control['NR']}"
+            heat_control["_HEATAREA_ID"] = f"{device['ID']}:{heat_control['HEATAREA_NR']}" if heat_control['HEATAREA_NR'] else None
             yield heat_control
 
     @property
