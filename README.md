@@ -21,6 +21,9 @@ from moehlenhoff_alpha2 import Alpha2Base
 async def main():
     base = Alpha2Base("192.168.1.1")
     await base.update_data()
+    # Set current date and time in base
+    await base.set_datetime()
+    # Increase the temperature of heatarea by 0.2 degrees
     heat_area = list(base.heat_areas)[0]
     t_target = heat_area["T_TARGET"] + 0.2
     await base.update_heat_area(heat_area["ID"], {"T_TARGET": t_target})

@@ -2,6 +2,7 @@
 import os
 import asyncio
 from unittest.mock import patch
+from datetime import datetime
 
 import pytest
 
@@ -113,6 +114,7 @@ async def test_heatarea_ids():
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(not ALPHA2_BASE_ADDRESS, reason="ALPHA2_BASE_ADDRESS not set in environment")
 async def test_ensure_static_data():
     """Test _ensure_static_data"""
     base = Alpha2Base(ALPHA2_BASE_ADDRESS)
@@ -216,3 +218,23 @@ async def test_update_lock():
         base.update_data()
     ]
     await asyncio.gather(*coros)
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not ALPHA2_BASE_ADDRESS, reason="ALPHA2_BASE_ADDRESS not set in environment")
+async def test_set_datetime():
+    """Test set datetime"""
+    base = Alpha2Base(ALPHA2_BASE_ADDRESS)
+    await base.update_data()
+
+    value = datetime(2010, 1, 1, 0, 0, 0)
+    await base.set_datetime(value)
+    await asyncio.sleep(5)
+    await base.update_data()
+    base_dt = datetime.strptime(base.static_data["Devices"]["Device"]["DATETIME"], "%Y-%m-%dT%H:%M:%S")
+    assert abs((base_dt - value).total_seconds()) < 10
+
+    await base.set_datetime()
+    await asyncio.sleep(5)
+    await base.update_data()
+    base_dt = datetime.strptime(base.static_data["Devices"]["Device"]["DATETIME"], "%Y-%m-%dT%H:%M:%S")
+    assert abs((base_dt - datetime.now()).total_seconds()) < 10

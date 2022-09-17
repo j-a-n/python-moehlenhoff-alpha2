@@ -10,11 +10,12 @@ import logging
 import asyncio
 import aiohttp
 import xmltodict
+from datetime import datetime
 
 
 logger = logging.getLogger(__name__)
 
-__version__ = "1.1.2"
+__version__ = "1.3.0"
 
 
 class Alpha2Base:
@@ -285,3 +286,10 @@ class Alpha2Base:
         command += "</HEATAREA>"
         async with self._update_lock:
             await self._send_command(device_id, command)
+
+    async def set_datetime(self, value: datetime = None) -> None:
+        """Set base date and time"""
+        value = value or datetime.now()
+        command = f"<DATETIME>{value.strftime('%Y-%m-%dT%H:%M:%S')}</DATETIME>"
+        async with self._update_lock:
+            await self._send_command(self.id, command)
