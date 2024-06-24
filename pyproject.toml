@@ -7,6 +7,10 @@ license = "GPL"
 readme = "README.md"
 homepage = "https://github.com/j-a-n/python-moehlenhoff-alpha2"
 repository = "https://github.com/j-a-n/python-moehlenhoff-alpha2"
+classifiers = [
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+]
+
 
 [tool.poetry.dependencies]
 python = "^3.7"
