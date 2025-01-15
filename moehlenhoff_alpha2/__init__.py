@@ -74,14 +74,21 @@ class Alpha2Base:
             "T_TARGET_MAX": float,
         },
     }
-    _command_poll_interval = 2.0
-    _command_timeout = 10.0
-    _client_timeout = aiohttp.ClientTimeout(total=10)
 
-    def __init__(self, host: str) -> None:
+    def __init__(
+        self,
+        host: str,
+        *,
+        command_poll_interval: float = 2.0,
+        command_timeout: float = 10.0,
+        request_timeout: float = 10.0
+    ) -> None:
         self.base_url = f"http://{host}"
         self.static_data = None
         self._update_lock = asyncio.Lock()
+        self._command_poll_interval = command_poll_interval
+        self._command_timeout = command_timeout
+        self._client_timeout = aiohttp.ClientTimeout(total=request_timeout)
 
     @classmethod
     def convert_types_from_xml(cls, entity_type: str, data: dict) -> dict:
