@@ -5,7 +5,7 @@ Released under the GNU General Public License v3.0
 """
 
 import time
-from typing import Union, Generator, Dict
+from typing import Generator
 import logging
 import asyncio
 import aiohttp
@@ -76,15 +76,10 @@ class Alpha2Base:
     }
 
     def __init__(
-        self,
-        host: str,
-        *,
-        command_poll_interval: float = 2.0,
-        command_timeout: float = 10.0,
-        request_timeout: float = 10.0
+        self, host: str, *, command_poll_interval: float = 2.0, command_timeout: float = 10.0, request_timeout: float = 10.0
     ) -> None:
         self.base_url = f"http://{host}"
-        self.static_data = None
+        self._static_data: dict | None = None
         self._update_lock = asyncio.Lock()
         self._command_poll_interval = command_poll_interval
         self._command_timeout = command_timeout
@@ -115,9 +110,7 @@ class Alpha2Base:
         for attribute in data:
             if attribute in _types:
                 if _types[attribute] is bool:
-                    data[attribute] = (
-                        "1" if data[attribute] and data[attribute] != "0" else "0"
-                    )
+                    data[attribute] = "1" if data[attribute] and data[attribute] != "0" else "0"
                     continue
                 if _types[attribute] is float:
                     data[attribute] = f"{float(data[attribute]):0.1f}"
@@ -127,51 +120,46 @@ class Alpha2Base:
 
     async def _send_command(self, device_id: str, command: str) -> str:
         """Send a command to the base with device_id"""
-        xml = (
-            '<?xml version="1.0" encoding="UTF-8"?>\n'
-            "<Devices><Device>"
-            f"<ID>{device_id}</ID>{command}"
-            "</Device></Devices>"
-        )
+        xml = f'<?xml version="1.0" encoding="UTF-8"?>\n<Devices><Device><ID>{device_id}</ID>{command}</Device></Devices>'
         async with aiohttp.ClientSession(timeout=self._client_timeout) as session:
             for trynum in (1, 2):
                 try:
-                    async with session.post(
-                        f"{self.base_url}/data/changes.xml", data=xml.encode("utf-8")
-                    ) as response:
+                    async with session.post(f"{self.base_url}/data/changes.xml", data=xml.encode("utf-8")) as response:
                         response.raise_for_status()
                         return await response.text()
                 except (UnicodeDecodeError, aiohttp.ClientError):
                     if trynum == 2:
                         raise
+        raise RuntimeError("Send command failed")
 
     async def send_command(self, command: str) -> str:
         """Send a command to the base"""
         async with self._update_lock:
             return await self._send_command(self.id, command)
 
-    def _ensure_static_data(self) -> None:
+    @property
+    def static_data(self) -> dict:
         """Ensure that static data is available"""
-        if not self.static_data:
+        if not self._static_data:
             raise RuntimeError("Static data not available")
+        return self._static_data
 
     async def _fetch_static_data(self) -> str:
         async with aiohttp.ClientSession(timeout=self._client_timeout) as session:
             for trynum in (1, 2):
                 try:
-                    async with session.get(
-                        f"{self.base_url}/data/static.xml"
-                    ) as response:
+                    async with session.get(f"{self.base_url}/data/static.xml") as response:
                         response.raise_for_status()
                         return await response.text()
                 except (UnicodeDecodeError, aiohttp.ClientError):
                     if trynum == 2:
                         raise
+        raise RuntimeError("Failed to fetch static data")
 
     async def _get_static_data(self) -> dict:
         """Get and process static data"""
-        data = await self._fetch_static_data()
-        data = xmltodict.parse(data)
+        str_data = await self._fetch_static_data()
+        data = xmltodict.parse(str_data)
         for _type in ("HEATAREA", "HEATCTRL", "IODEVICE"):
             if not isinstance(data["Devices"]["Device"][_type], list):
                 data["Devices"]["Device"][_type] = [data["Devices"]["Device"][_type]]
@@ -180,7 +168,7 @@ class Alpha2Base:
     async def update_data(self) -> None:
         """Update local data"""
         async with self._update_lock:
-            self.static_data = await self._get_static_data()
+            self._static_data = await self._get_static_data()
             logger.debug(
                 "Static data updated from '%s', device name is '%s', %d heat areas, %d heat controls and %d io devices found",
                 self.base_url,
@@ -193,45 +181,40 @@ class Alpha2Base:
     @property
     def name(self) -> str:
         """Return the name of the base"""
-        self._ensure_static_data()
         return self.static_data["Devices"]["Device"]["NAME"]
 
     @property
-    def id(self) -> str:  # pylint: disable=invalid-name
+    def id(self) -> str:
         """Return the id of the base"""
-        self._ensure_static_data()
         return self.static_data["Devices"]["Device"]["ID"]
 
     @property
-    def io_devices(self) -> Generator[Dict, None, None]:
+    def io_devices(self) -> Generator[dict, None, None]:
         """Return all io devices"""
-        self._ensure_static_data()
         device = self.static_data["Devices"]["Device"]
         for io_device in device["IODEVICE"]:
             io_device = self.convert_types_from_xml("IODEVICE", io_device)
             io_device["NR"] = int(io_device["@nr"])
             del io_device["@nr"]
             io_device["ID"] = f"{device['ID']}:{io_device['NR']}"
-            io_device["_HEATAREA_ID"] = f"{device['ID']}:{io_device['HEATAREA_NR']}" if io_device['HEATAREA_NR'] else None
+            io_device["_HEATAREA_ID"] = f"{device['ID']}:{io_device['HEATAREA_NR']}" if io_device["HEATAREA_NR"] else None
             yield io_device
 
     @property
-    def heat_controls(self) -> Generator[Dict, None, None]:
+    def heat_controls(self) -> Generator[dict, None, None]:
         """Return all heat controls"""
-        self._ensure_static_data()
         device = self.static_data["Devices"]["Device"]
         for heat_control in device["HEATCTRL"]:
             heat_control = self.convert_types_from_xml("HEATCTRL", heat_control)
             heat_control["NR"] = int(heat_control["@nr"])
             del heat_control["@nr"]
             heat_control["ID"] = f"{device['ID']}:{heat_control['NR']}"
-            heat_control["_HEATAREA_ID"] = f"{device['ID']}:{heat_control['HEATAREA_NR']}" if heat_control['HEATAREA_NR'] else None
+            heat_control["_HEATAREA_ID"] = f"{device['ID']}:{heat_control['HEATAREA_NR']}" if heat_control["HEATAREA_NR"] else None
             yield heat_control
 
     @property
-    def heat_areas(self) -> Generator[Dict, None, None]:
+    def heat_areas(self) -> Generator[dict, None, None]:
         """Return all heat areas"""
-        self._ensure_static_data()
         device = self.static_data["Devices"]["Device"]
         for heat_area in device["HEATAREA"]:
             heat_area = self.convert_types_from_xml("HEATAREA", heat_area)
@@ -240,10 +223,7 @@ class Alpha2Base:
             heat_area["ID"] = f"{device['ID']}:{heat_area['NR']}"
             heat_area["_HEATCTRL_STATE"] = 0
             for heatctrl in device["HEATCTRL"]:
-                if (
-                    heatctrl["INUSE"]
-                    and int(heatctrl["HEATAREA_NR"]) == heat_area["NR"]
-                ):
+                if heatctrl["INUSE"] and int(heatctrl["HEATAREA_NR"]) == heat_area["NR"]:
                     heat_area["_HEATCTRL_STATE"] = int(heatctrl["HEATCTRL_STATE"])
                     if heat_area["_HEATCTRL_STATE"]:
                         break
@@ -252,31 +232,28 @@ class Alpha2Base:
     @property
     def cooling(self) -> bool:
         """Return if cooling mode is active"""
-        self._ensure_static_data()
         return int(self.static_data["Devices"]["Device"]["COOLING"]) == 1
 
     async def set_cooling(self, value: bool) -> None:
         """Set cooling mode"""
         # Needs <RELAIS><FUNCTION>1</FUNCTION></RELAIS>
-        value = 1 if value else 0
-        self.static_data["Devices"]["Device"]["COOLING"] = value
-        command = f"<COOLING>{value}</COOLING>"
+        cooling = 1 if value else 0
+        self.static_data["Devices"]["Device"]["COOLING"] = cooling
+        command = f"<COOLING>{cooling}</COOLING>"
         async with self._update_lock:
             await self._send_command(self.id, command)
             start = time.time()
             while True:
                 await asyncio.sleep(self._command_poll_interval)
                 data = await self._get_static_data()
-                if int(data["Devices"]["Device"]["COOLING"]) == value:
-                    self.static_data = data
+                if int(data["Devices"]["Device"]["COOLING"]) == cooling:
+                    self._static_data = data
                     break
                 elapsed = time.time() - start
                 if elapsed > self._command_timeout:
-                    raise TimeoutError(
-                        f"Timed out after {elapsed:0.0f} seconds while waiting for command to take effect"
-                    )
+                    raise TimeoutError(f"Timed out after {elapsed:0.0f} seconds while waiting for command to take effect")
 
-    async def update_heat_area(self, heat_area_id: Union[str, int], attributes: dict):
+    async def update_heat_area(self, heat_area_id: str | int, attributes: dict) -> None:
         """Update heat area attributes on base"""
         heat_area_id = str(heat_area_id)
         device_id = None
@@ -294,7 +271,7 @@ class Alpha2Base:
         async with self._update_lock:
             await self._send_command(device_id, command)
 
-    async def set_datetime(self, value: datetime = None) -> None:
+    async def set_datetime(self, value: datetime | None = None) -> None:
         """Set base date and time"""
         value = value or datetime.now()
         command = f"<DATETIME>{value.strftime('%Y-%m-%dT%H:%M:%S')}</DATETIME>"

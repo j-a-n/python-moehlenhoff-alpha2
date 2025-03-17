@@ -4,18 +4,27 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Run pylint",
+			"label": "Run ruff check",
 			"type": "shell",
-			"command": "poetry run pylint moehlenhoff_alpha2 tests",
+			"command": "uv run ruff check moehlenhoff_alpha2 tests",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
 			  }
 		},
 		{
-			"label": "Run flake8",
+			"label": "Run ruff format",
 			"type": "shell",
-			"command": "poetry run flake8 moehlenhoff_alpha2 tests",
+			"command": "uv run ruff format moehlenhoff_alpha2 tests",
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			  }
+		},
+		{
+			"label": "Run mypy",
+			"type": "shell",
+			"command": "uv run mypy moehlenhoff_alpha2 tests",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
@@ -24,7 +33,7 @@
 		{
 			"label": "Run pytest",
 			"type": "shell",
-			"command": "poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov moehlenhoff_alpha2 --cov-report term --cov-report xml -vv tests",
+			"command": "uv run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov moehlenhoff_alpha2 --cov-report term --cov-report xml -vv tests",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"

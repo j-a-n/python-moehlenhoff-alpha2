@@ -14,7 +14,7 @@ pip install moehlenhoff-alpha2
 
 ## Usage example
 
-``` python
+```python
 import asyncio
 from moehlenhoff_alpha2 import Alpha2Base
 
@@ -32,11 +32,11 @@ asyncio.run(main())
 ```
 
 ## Development
-Get [Python Poetry](https://python-poetry.org/docs/)
+Get [uv](https://docs.astral.sh/uv/)
 ```
 # Install project dependencies
-poetry install
+poetry sync
 
 # Run tests
-ALPHA2_BASE_ADDRESS=<address> poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov moehlenhoff_alpha2 --cov-report term --cov-report xml -v tests
+ALPHA2_BASE_ADDRESS=<address> uv run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov moehlenhoff_alpha2 --cov-report term --cov-report xml -v tests
 ```
