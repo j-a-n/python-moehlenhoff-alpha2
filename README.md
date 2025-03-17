@@ -39,7 +39,7 @@ Get [uv](https://docs.astral.sh/uv/)
 
 ```
 # Install project dependencies
-poetry sync
+uv sync
 
 # Run tests
 ALPHA2_BASE_ADDRESS=<address> uv run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov moehlenhoff_alpha2 --cov-report term --cov-report xml -v tests
