@@ -4,18 +4,19 @@
 Released under the GNU General Public License v3.0
 """
 
-import time
-from typing import Generator
-import logging
 import asyncio
+import logging
+import re
+import time
+from datetime import datetime
+from typing import Generator
+
 import aiohttp
 import xmltodict
-from datetime import datetime
-
 
 logger = logging.getLogger(__name__)
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 
 
 class Alpha2Base:
@@ -78,6 +79,9 @@ class Alpha2Base:
     def __init__(
         self, host: str, *, command_poll_interval: float = 2.0, command_timeout: float = 10.0, request_timeout: float = 10.0
     ) -> None:
+        match = re.search(r"[^:]+://([^/]+)/?", host)
+        if match:
+            host = match.group(1)
         self.base_url = f"http://{host}"
         self._static_data: dict | None = None
         self._update_lock = asyncio.Lock()

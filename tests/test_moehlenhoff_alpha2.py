@@ -1,15 +1,30 @@
 """Alpha2 tests"""
 
-import os
 import asyncio
-from unittest.mock import patch
+import os
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 
 from moehlenhoff_alpha2 import Alpha2Base
 
 ALPHA2_BASE_ADDRESS = os.environ.get("ALPHA2_BASE_ADDRESS")
+
+
+@pytest.mark.parametrize(
+    "host, expected_base_url",
+    (
+        ("alpha2", "http://alpha2"),
+        ("192.168.1.11", "http://192.168.1.11"),
+        ("http://192.168.1.11/", "http://192.168.1.11"),
+        ("http://alpha2.lan", "http://alpha2.lan"),
+        ("https://alpha2.lan", "http://alpha2.lan"),
+    ),
+)
+def test_init_host_argument(host: str, expected_base_url: str) -> None:
+    """Test type conversion from xml"""
+    assert Alpha2Base(host).base_url == expected_base_url
 
 
 @pytest.mark.parametrize(
