@@ -178,19 +178,11 @@ async def test_get_set_cooling():
 @pytest.mark.skipif(not ALPHA2_BASE_ADDRESS, reason="ALPHA2_BASE_ADDRESS not set in environment")
 async def test_set_cooling_timeout():
     """Test getting and setting cooling mode"""
-    command_timeout = Alpha2Base._command_timeout  # pylint: disable=protected-access
-    command_poll_interval = Alpha2Base._command_poll_interval  # pylint: disable=protected-access
-    Alpha2Base._command_timeout = 0.1  # pylint: disable=protected-access
-    Alpha2Base._command_poll_interval = 0.1  # pylint: disable=protected-access
-    try:
-        base = Alpha2Base(ALPHA2_BASE_ADDRESS)
-        await base.update_data()
-        with pytest.raises(TimeoutError):
-            await base.set_cooling(True)
-            await base.set_cooling(False)
-    finally:
-        Alpha2Base._command_timeout = command_timeout  # pylint: disable=protected-access
-        Alpha2Base._command_poll_interval = command_poll_interval  # pylint: disable=protected-access
+    base = Alpha2Base(ALPHA2_BASE_ADDRESS, command_timeout=0.1, command_poll_interval=0.1)
+    await base.update_data()
+    with pytest.raises(TimeoutError):
+        await base.set_cooling(True)
+        await base.set_cooling(False)
 
 
 @pytest.mark.asyncio
